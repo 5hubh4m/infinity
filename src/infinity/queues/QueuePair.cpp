@@ -38,11 +38,14 @@ int OperationFlags::ibvFlags() {
 QueuePair::QueuePair(infinity::core::Context* context) :
 		context(context) {
 
+	// Allocate receive completion queue
+	this->ibvReceiveCompletionQueue = ibv_create_cq(context->getInfiniBandContext(), MAX(infinity::core::Configuration::RECV_COMPLETION_QUEUE_LENGTH, 1), NULL, NULL, 0);
+
 	ibv_qp_init_attr qpInitAttributes;
 	memset(&qpInitAttributes, 0, sizeof(qpInitAttributes));
 
 	qpInitAttributes.send_cq = context->getSendCompletionQueue();
-	qpInitAttributes.recv_cq = context->getReceiveCompletionQueue();
+	qpInitAttributes.recv_cq = this->ibvReceiveCompletionQueue;
 	qpInitAttributes.srq = context->getSharedReceiveQueue();
 	qpInitAttributes.cap.max_send_wr = MAX(infinity::core::Configuration::SEND_COMPLETION_QUEUE_LENGTH, 1);
 	qpInitAttributes.cap.max_send_sge = infinity::core::Configuration::MAX_NUMBER_OF_SGE_ELEMENTS;
@@ -83,6 +86,10 @@ QueuePair::~QueuePair() {
 		free(this->userData);
 		this->userDataSize = 0;
 	}
+
+	// Destroy completion queue
+	returnValue = ibv_destroy_cq(this->ibvReceiveCompletionQueue);
+	INFINITY_ASSERT(returnValue == 0, "[INFINITY][CORE][QUEUEPAIR] Could not delete receive completion queue\n");
 
 }
 
@@ -140,6 +147,65 @@ uint32_t QueuePair::getQueuePairNumber() {
 
 uint32_t QueuePair::getSequenceNumber() {
 	return this->sequenceNumber;
+}
+
+void QueuePair::postReceiveBuffer(infinity::memory::Buffer* buffer) {
+
+	INFINITY_ASSERT(buffer->getSizeInBytes() <= std::numeric_limits<uint32_t>::max(),
+			"[INFINITY][CORE][QUEUEPAIR] Cannot post receive buffer which is larger than max(uint32_t).\n");
+
+	// Create scatter-getter
+	ibv_sge isge;
+	memset(&isge, 0, sizeof(ibv_sge));
+	isge.addr = buffer->getAddress();
+	isge.length = static_cast<uint32_t>(buffer->getSizeInBytes());
+	isge.lkey = buffer->getLocalKey();
+
+	// Create work request
+	ibv_recv_wr wr;
+	memset(&wr, 0, sizeof(ibv_recv_wr));
+	wr.wr_id = reinterpret_cast<uint64_t>(buffer);
+	wr.next = NULL;
+	wr.sg_list = &isge;
+	wr.num_sge = 1;
+
+	// Post buffer to shared receive queue
+	ibv_recv_wr *badwr;
+	uint32_t returnValue = ibv_post_recv(this->ibvQueuePair, &wr, &badwr);
+	INFINITY_ASSERT(returnValue == 0, "[INFINITY][CORE][QUEUEPAIR] Cannot post buffer to receive queue.\n");
+
+}
+
+bool QueuePair::receive(infinity::memory::Buffer** buffer, uint32_t *bytesWritten, uint32_t *immediateValue, bool *immediateValueValid) {
+
+	ibv_wc wc;
+	if (ibv_poll_cq(this->ibvReceiveCompletionQueue, 1, &wc) > 0) {
+
+		if(wc.opcode == IBV_WC_RECV) {
+			*(buffer) = reinterpret_cast<infinity::memory::Buffer*>(wc.wr_id);
+			*(bytesWritten) = wc.byte_len;
+		} else if (wc.opcode == IBV_WC_RECV_RDMA_WITH_IMM) {
+			*(buffer) = NULL;
+			*(bytesWritten) = wc.byte_len;
+			infinity::memory::Buffer* receiveBuffer = reinterpret_cast<infinity::memory::Buffer*>(wc.wr_id);
+			this->postReceiveBuffer(receiveBuffer);
+		}
+
+		if (immediateValue != NULL && immediateValueValid != NULL) {
+			if(wc.wc_flags & IBV_WC_WITH_IMM) {
+				*(immediateValue) = ntohl(wc.imm_data);
+				*(immediateValueValid) = true;
+			} else {
+				*(immediateValue) = 0;
+				*(immediateValueValid) = false;
+			}
+                }
+
+		return true;
+	}
+
+	return false;
+
 }
 
 void QueuePair::send(infinity::memory::Buffer* buffer, infinity::requests::RequestToken *requestToken) {

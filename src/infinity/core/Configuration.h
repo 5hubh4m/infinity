@@ -34,8 +34,6 @@ public:
 
 	static const uint32_t MAX_NUMBER_OF_SGE_ELEMENTS = 1;				// Must be less than MAX_SGE
 
-public:
-
 	/**
 	 * System settings
 	 */

@@ -89,6 +89,16 @@ public:
 public:
 
 	/**
+	 * Check if receive operation completed
+	 */
+	bool receive(infinity::memory::Buffer **buffer, uint32_t *bytesWritten, uint32_t *immediateValue = NULL, bool *immediateValueValid = NULL);
+
+	/**
+	 * Post a new buffer for receiving messages
+	 */
+	void postReceiveBuffer(infinity::memory::Buffer *buffer);
+
+	/**
 	 * Buffer operations
 	 */
 
@@ -149,6 +159,8 @@ protected:
 
 	void *userData;
 	uint32_t userDataSize;
+
+	ibv_cq* ibvReceiveCompletionQueue;
 
 };
 
