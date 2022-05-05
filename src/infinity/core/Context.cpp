@@ -28,7 +28,11 @@ namespace core {
  * Context
  ******************************/
 
-Context::Context(uint16_t device, uint16_t devicePort) {
+Context::Context(Configuration *config, uint16_t device, uint16_t devicePort) {
+
+	// Set configuration
+	INFINITY_ASSERT(config != NULL, "[INFINITY][CORE][CONTEXT] Supplied configuration was NULL.\n");
+	this->infinityConfig = config;
 
 	// Get IB device list
 	int32_t numberOfInstalledDevices = 0;
@@ -55,13 +59,13 @@ Context::Context(uint16_t device, uint16_t devicePort) {
 	this->ibvDevicePort = devicePort;
 
 	// Allocate completion queue
-	this->ibvSendCompletionQueue = ibv_create_cq(this->ibvContext, MAX(Configuration::SEND_COMPLETION_QUEUE_LENGTH, 1), NULL, NULL, 0);
+	this->ibvSendCompletionQueue = ibv_create_cq(this->ibvContext, MAX(config->SEND_COMPLETION_QUEUE_LENGTH, 1), NULL, NULL, 0);
 
 	// Allocate shared receive queue
 	ibv_srq_init_attr sia;
 	memset(&sia, 0, sizeof(ibv_srq_init_attr));
 	sia.srq_context = this->ibvContext;
-	sia.attr.max_wr = MAX(Configuration::SHARED_RECV_QUEUE_LENGTH, 1);
+	sia.attr.max_wr = MAX(config->SHARED_RECV_QUEUE_LENGTH, 1);
 	sia.attr.max_sge = 1;
 	this->ibvSharedReceiveQueue = ibv_create_srq(this->ibvProtectionDomain, &sia);
 	INFINITY_ASSERT(this->ibvSharedReceiveQueue != NULL, "[INFINITY][CORE][CONTEXT] Could not allocate shared receive queue.\n");
@@ -187,6 +191,10 @@ bool Context::pollSendCompletionQueue() {
 
 void Context::registerQueuePair(infinity::queues::QueuePair* queuePair) {
 	this->queuePairMap.insert({queuePair->getQueuePairNumber(), queuePair});
+}
+
+Configuration* Context::getConfiguration() {
+	return this->infinityConfig;
 }
 
 ibv_context* Context::getInfiniBandContext() {

@@ -39,6 +39,8 @@ class RequestToken;
 namespace infinity {
 namespace core {
 
+class Configuration;
+
 typedef struct {
 	infinity::memory::Buffer *buffer;
 	uint32_t bytesWritten;
@@ -62,7 +64,7 @@ public:
 	/**
 	 * Constructors
 	 */
-	Context(uint16_t device = 0, uint16_t devicePort = 1);
+	Context(Configuration *config, uint16_t device = 0, uint16_t devicePort = 1);
 
 	/**
 	 * Destructor
@@ -88,6 +90,11 @@ public:
 	infinity::memory::Atomic * defaultAtomic;
 
 protected:
+
+	/**
+	 * Returns configuration
+	 */
+	Configuration * getConfiguration();
 
 	/**
 	 * Returns ibVerbs context
@@ -132,6 +139,11 @@ protected:
 	ibv_srq * getSharedReceiveQueue();
 
 protected:
+
+	/**
+	 * Configuration
+	 */
+	Configuration *infinityConfig;
 
 	/**
 	 * IB context and protection domain

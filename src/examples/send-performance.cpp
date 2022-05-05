@@ -14,6 +14,7 @@
 #include <sys/time.h>
 
 #include <infinity/core/Context.h>
+#include <infinity/core/Configuration.h>
 #include <infinity/queues/QueuePairFactory.h>
 #include <infinity/queues/QueuePair.h>
 #include <infinity/memory/Buffer.h>
@@ -48,7 +49,8 @@ int main(int argc, char **argv) {
 		--argc;
 	}
 
-	infinity::core::Context *context = new infinity::core::Context();
+	infinity::core::Configuration *config = new infinity::core::Configuration();
+	infinity::core::Context *context = new infinity::core::Context(config);
 	infinity::queues::QueuePairFactory *qpFactory = new infinity::queues::QueuePairFactory(context);
 	infinity::queues::QueuePair *qp;
 
@@ -168,6 +170,7 @@ int main(int argc, char **argv) {
 	delete qp;
 	delete qpFactory;
 	delete context;
+	delete config;
 
 	return 0;
 
