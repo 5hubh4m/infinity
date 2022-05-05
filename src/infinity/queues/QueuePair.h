@@ -50,7 +50,7 @@ public:
 	/**
 	 * Constructor
 	 */
-	QueuePair(infinity::core::Context *context);
+	QueuePair(infinity::core::Context *context, bool useSharedQueue);
 
 	/**
 	 * Destructor
@@ -91,6 +91,7 @@ public:
 	/**
 	 * Check if receive operation completed
 	 */
+	bool receive(core::receive_element_t* receiveElement);
 	bool receive(infinity::memory::Buffer **buffer, uint32_t *bytesWritten, uint32_t *immediateValue = NULL, bool *immediateValueValid = NULL);
 
 	/**
@@ -161,6 +162,7 @@ protected:
 	uint32_t userDataSize;
 
 	ibv_cq* ibvReceiveCompletionQueue;
+	bool useSharedQueue;
 
 };
 

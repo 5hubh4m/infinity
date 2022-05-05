@@ -58,8 +58,9 @@ Context::Context(Configuration *config, uint16_t device, uint16_t devicePort) {
 	this->ibvLocalDeviceId = portAttributes.lid;
 	this->ibvDevicePort = devicePort;
 
-	// Allocate completion queue
+	// Allocate completion queues
 	this->ibvSendCompletionQueue = ibv_create_cq(this->ibvContext, MAX(config->SEND_COMPLETION_QUEUE_LENGTH, 1), NULL, NULL, 0);
+	this->ibvReceiveCompletionQueue = ibv_create_cq(this->ibvContext, MAX(config->RECV_COMPLETION_QUEUE_LENGTH, 1), NULL, NULL, 0);
 
 	// Allocate shared receive queue
 	ibv_srq_init_attr sia;
@@ -86,9 +87,11 @@ Context::~Context() {
 	int returnValue = ibv_destroy_srq(this->ibvSharedReceiveQueue);
 	INFINITY_ASSERT(returnValue == 0, "[INFINITY][CORE][CONTEXT] Could not delete shared receive queue\n");
 
-	// Destroy completion queue
+	// Destroy completion queues
 	returnValue = ibv_destroy_cq(this->ibvSendCompletionQueue);
 	INFINITY_ASSERT(returnValue == 0, "[INFINITY][CORE][CONTEXT] Could not delete send completion queue\n");
+	returnValue = ibv_destroy_cq(this->ibvReceiveCompletionQueue);
+	INFINITY_ASSERT(returnValue == 0, "[INFINITY][CORE][CONTEXT] Could not delete receive completion queue\n");
 
 	// Destroy protection domain
 	returnValue = ibv_dealloc_pd(this->ibvProtectionDomain);

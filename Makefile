@@ -12,6 +12,7 @@ PROJECT_NAME = libinfinity
 
 ##################################################
 
+CXX		= c++
 CXX_FLAGS 	= -O3 -std=c++11 -DINFINITY_ASSERT_ON
 LD_FLAGS	= -linfinity -libverbs
 

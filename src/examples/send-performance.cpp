@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
 		for (uint32_t i = 0; i < BUFFER_COUNT; ++i) {
 			delete receiveBuffers[i];
 		}
-		delete receiveBuffers;
+		delete[] receiveBuffers;
 		delete sendBuffer;
 
 	} else {

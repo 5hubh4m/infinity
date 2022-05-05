@@ -35,18 +35,23 @@ int OperationFlags::ibvFlags() {
   return flags;
 }
 
-QueuePair::QueuePair(infinity::core::Context* context) :
-		context(context) {
+QueuePair::QueuePair(infinity::core::Context* context, bool useSharedQueue) :
+		context(context), useSharedQueue(useSharedQueue) {
 
 	// Allocate receive completion queue
-	this->ibvReceiveCompletionQueue = ibv_create_cq(context->getInfiniBandContext(), MAX(context->getConfiguration()->RECV_COMPLETION_QUEUE_LENGTH, 1), NULL, NULL, 0);
-
+	if (useSharedQueue) {
+		this->ibvReceiveCompletionQueue = context->getReceiveCompletionQueue();
+	} else {
+		this->ibvReceiveCompletionQueue = ibv_create_cq(context->getInfiniBandContext(), MAX(context->getConfiguration()->RECV_COMPLETION_QUEUE_LENGTH, 1), NULL, NULL, 0);
+	}
 	ibv_qp_init_attr qpInitAttributes;
 	memset(&qpInitAttributes, 0, sizeof(qpInitAttributes));
 
 	qpInitAttributes.send_cq = context->getSendCompletionQueue();
 	qpInitAttributes.recv_cq = this->ibvReceiveCompletionQueue;
-	qpInitAttributes.srq = context->getSharedReceiveQueue();
+	if (useSharedQueue) {
+		qpInitAttributes.srq = context->getSharedReceiveQueue();
+	}
 	qpInitAttributes.cap.max_send_wr = MAX(context->getConfiguration()->SEND_COMPLETION_QUEUE_LENGTH, 1);
 	qpInitAttributes.cap.max_send_sge = context->getConfiguration()->MAX_NUMBER_OF_SGE_ELEMENTS;
 	qpInitAttributes.cap.max_recv_wr = MAX(context->getConfiguration()->RECV_COMPLETION_QUEUE_LENGTH, 1);
@@ -88,9 +93,10 @@ QueuePair::~QueuePair() {
 	}
 
 	// Destroy completion queue
-	returnValue = ibv_destroy_cq(this->ibvReceiveCompletionQueue);
-	INFINITY_ASSERT(returnValue == 0, "[INFINITY][CORE][QUEUEPAIR] Could not delete receive completion queue\n");
-
+	if (!this->useSharedQueue) {
+		returnValue = ibv_destroy_cq(this->ibvReceiveCompletionQueue);
+		INFINITY_ASSERT(returnValue == 0, "[INFINITY][CORE][QUEUEPAIR] Could not delete receive completion queue\n");
+	}
 }
 
 void QueuePair::activate(uint16_t remoteDeviceId, uint32_t remoteQueuePairNumber, uint32_t remoteSequenceNumber) {
@@ -151,6 +157,8 @@ uint32_t QueuePair::getSequenceNumber() {
 
 void QueuePair::postReceiveBuffer(infinity::memory::Buffer* buffer) {
 
+	INFINITY_ASSERT(!this->useSharedQueue,
+			"[INFINITY][CORE][QUEUEPAIR] Cannot post receive buffer on a queue pair using shared queue.\n");
 	INFINITY_ASSERT(buffer->getSizeInBytes() <= std::numeric_limits<uint32_t>::max(),
 			"[INFINITY][CORE][QUEUEPAIR] Cannot post receive buffer which is larger than max(uint32_t).\n");
 
@@ -176,7 +184,17 @@ void QueuePair::postReceiveBuffer(infinity::memory::Buffer* buffer) {
 
 }
 
+bool QueuePair::receive(core::receive_element_t* receiveElement) {
+
+	receiveElement->queuePair = this;
+	return receive(&(receiveElement->buffer), &(receiveElement->bytesWritten), &(receiveElement->immediateValue), &(receiveElement->immediateValueValid));
+
+}
+
 bool QueuePair::receive(infinity::memory::Buffer** buffer, uint32_t *bytesWritten, uint32_t *immediateValue, bool *immediateValueValid) {
+
+	INFINITY_ASSERT(!this->useSharedQueue,
+			"[INFINITY][CORE][QUEUEPAIR] Cannot post receive buffer on a queue pair using shared queue.\n");
 
 	ibv_wc wc;
 	if (ibv_poll_cq(this->ibvReceiveCompletionQueue, 1, &wc) > 0) {

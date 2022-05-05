@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
 
 		printf("Setting up connection (blocking)\n");
 		qpFactory->bindToPort(PORT_NUMBER);
-		qp = qpFactory->acceptIncomingConnection(bufferToken, sizeof(infinity::memory::RegionToken));
+		qp = qpFactory->acceptIncomingConnection(true, bufferToken, sizeof(infinity::memory::RegionToken));
 
 		printf("Waiting for message (blocking)\n");
 		infinity::core::receive_element_t receiveElement;

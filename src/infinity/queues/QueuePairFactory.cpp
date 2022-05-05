@@ -71,7 +71,7 @@ void QueuePairFactory::bindToPort(uint16_t port) {
 
 }
 
-QueuePair * QueuePairFactory::acceptIncomingConnection(void *userData, uint32_t userDataSizeInBytes) {
+QueuePair * QueuePairFactory::acceptIncomingConnection(bool useSharedQueue, void *userData, uint32_t userDataSizeInBytes) {
 
 	INFINITY_ASSERT(userDataSizeInBytes < infinity::core::Configuration::MAX_CONNECTION_USER_DATA_SIZE,
 			"[INFINITY][QUEUES][FACTORY] User data size is too large.\n")
@@ -86,7 +86,7 @@ QueuePair * QueuePairFactory::acceptIncomingConnection(void *userData, uint32_t 
 	INFINITY_ASSERT(returnValue == sizeof(serializedQueuePair), "[INFINITY][QUEUES][FACTORY] Incorrect number of bytes received. Expected %lu. Received %d.\n",
 			sizeof(serializedQueuePair), returnValue);
 
-	QueuePair *queuePair = new QueuePair(this->context);
+	QueuePair *queuePair = new QueuePair(this->context, useSharedQueue);
 
 	sendBuffer->localDeviceId = queuePair->getLocalDeviceId();
 	sendBuffer->queuePairNumber = queuePair->getQueuePairNumber();
@@ -115,7 +115,7 @@ QueuePair * QueuePairFactory::acceptIncomingConnection(void *userData, uint32_t 
 
 }
 
-QueuePair * QueuePairFactory::connectToRemoteHost(const char* hostAddress, uint16_t port, void *userData, uint32_t userDataSizeInBytes) {
+QueuePair * QueuePairFactory::connectToRemoteHost(const char* hostAddress, uint16_t port, bool useSharedQueue, void *userData, uint32_t userDataSizeInBytes) {
 
 	INFINITY_ASSERT(userDataSizeInBytes < infinity::core::Configuration::MAX_CONNECTION_USER_DATA_SIZE,
 			"[INFINITY][QUEUES][FACTORY] User data size is too large.\n")
@@ -135,7 +135,7 @@ QueuePair * QueuePairFactory::connectToRemoteHost(const char* hostAddress, uint1
 	int returnValue = connect(connectionSocket, (sockaddr *) &(remoteAddress), sizeof(sockaddr_in));
 	INFINITY_ASSERT(returnValue == 0, "[INFINITY][QUEUES][FACTORY] Could not connect to server.\n");
 
-	QueuePair *queuePair = new QueuePair(this->context);
+	QueuePair *queuePair = new QueuePair(this->context, useSharedQueue);
 
 	sendBuffer->localDeviceId = queuePair->getLocalDeviceId();
 	sendBuffer->queuePairNumber = queuePair->getQueuePairNumber();
@@ -168,9 +168,9 @@ QueuePair * QueuePairFactory::connectToRemoteHost(const char* hostAddress, uint1
 
 }
 
-QueuePair* QueuePairFactory::createLoopback(void *userData, uint32_t userDataSizeInBytes) {
+QueuePair* QueuePairFactory::createLoopback(bool useSharedQueue, void *userData, uint32_t userDataSizeInBytes) {
 
-	QueuePair *queuePair = new QueuePair(this->context);
+	QueuePair *queuePair = new QueuePair(this->context, useSharedQueue);
 	queuePair->activate(queuePair->getLocalDeviceId(), queuePair->getQueuePairNumber(), queuePair->getSequenceNumber());
 	queuePair->setRemoteUserData(userData, userDataSizeInBytes);
 
